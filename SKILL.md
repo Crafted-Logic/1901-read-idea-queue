@@ -55,10 +55,15 @@ above). Use read operations only. If the bot has no way to read it, that is
 
 Exactly one `design_id`, for example `1901-003`.
 
-- Matching is exact string equality: no trimming of the cell, no case folding,
-  no fuzzy match, no "closest" id, no normalising `1901-3` into `1901-003`.
-- A missing, empty, multi-valued id, or one containing whitespace, is
-  `INVALID_REQUEST`. Do not guess what was meant.
+- Trim leading and trailing whitespace from the user's supplied id before
+  anything else. ` 1901-003 ` is looked up as `1901-003`. That is the only
+  normalisation allowed, and it applies to the input only.
+- After trimming, a missing, empty, multi-valued id, or one still containing
+  internal whitespace, is `INVALID_REQUEST`. Do not guess what was meant.
+- Matching against the sheet is exact string equality between the trimmed
+  input and the stored cell value: no trimming or altering of the cell, no
+  case folding, no fuzzy match, no "closest" id, no normalising `1901-3` into
+  `1901-003`.
 
 ## Known Queue Fields
 
@@ -92,7 +97,8 @@ it under `unknown_columns` exactly as read.
 
 Given a `design_id`:
 
-1. Validate the input. Anything but one usable id: `INVALID_REQUEST`.
+1. Trim surrounding whitespace from the supplied id, then validate it.
+   Anything but one usable id: `INVALID_REQUEST`.
 2. Read the exact authoritative spreadsheet and the exact `Idea Queue`
    worksheet. Not readable: `SOURCE_UNAVAILABLE`.
 3. Read the header row and map fields by name (Header Handling above).
@@ -113,7 +119,7 @@ Return exactly one JSON object and nothing that contradicts it in prose:
 
 ```json
 {
-  "design_id": "the id as received",
+  "design_id": "the supplied id after trimming surrounding whitespace",
   "result": "FOUND | NOT_FOUND | DUPLICATE_ID | INVALID_REQUEST | SOURCE_UNAVAILABLE | SCHEMA_WARNING",
   "source": {
     "spreadsheet_id": "1UxnZsA9aWlxZHqMAt17_7HAe86w_cHcMik3xpXQrfq0",
@@ -200,6 +206,9 @@ problems. There is no other exit.
 - **The sheet cannot be reached, but you remember the row.** Memory is not the
   live queue. `SOURCE_UNAVAILABLE`, record `null`.
 - **A near-miss id such as `1901-03`.** `NOT_FOUND`. Do not pick the closest.
+- **Input arrives as ` 1901-003 ` or with a trailing newline.** Trim it and
+  look up `1901-003`. A stored cell that itself carries stray whitespace is a
+  different string and stays `NOT_FOUND`; the cell is never trimmed.
 
 ## Examples
 
@@ -285,7 +294,8 @@ The first header cell reads `ID`, so no `id` column can be identified.
 ## Verification
 
 The skill worked if the reply is one JSON object in the shape above, `source`
-names the exact authoritative spreadsheet and worksheet, every value in
-`record` was read from the live sheet in this run, blank cells are `""` and
-absent columns are `null`, and no cell, row, header, sheet, file, or external
-system changed during the run.
+names the exact authoritative spreadsheet and worksheet, `design_id` is the
+supplied id with only surrounding whitespace removed, every value in `record`
+was read from the live sheet in this run, blank cells are `""` and absent
+columns are `null`, and no cell, row, header, sheet, file, or external system
+changed during the run.
