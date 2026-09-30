@@ -58,8 +58,9 @@ Exactly one `design_id`, for example `1901-003`.
 - Trim leading and trailing whitespace from the user's supplied id before
   anything else. ` 1901-003 ` is looked up as `1901-003`. That is the only
   normalisation allowed, and it applies to the input only.
-- After trimming, a missing, empty, multi-valued id, or one still containing
-  internal whitespace, is `INVALID_REQUEST`. Do not guess what was meant.
+- After trimming, a missing, empty, or multi-valued id is `INVALID_REQUEST`.
+  Do not guess what was meant. Anything else goes to lookup as-is; an id
+  that matches no stored cell exactly is simply `NOT_FOUND`.
 - Matching against the sheet is exact string equality between the trimmed
   input and the stored cell value: no trimming or altering of the cell, no
   case folding, no fuzzy match, no "closest" id, no normalising `1901-3` into
